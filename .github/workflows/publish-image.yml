@@ -27,7 +27,26 @@ jobs:
           test -n "$USERNAME" || { echo "Username variable is missing"; exit 1; }
           test -n "$TOKEN" || { echo "Docker Hub token is missing"; exit 1; }
           echo "Both credentials are available."
+      - name: Test Docker Hub authentication
+        env:
+          DH_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          RESPONSE=$(mktemp)
+          STATUS=$(curl -sS -o "$RESPONSE" -w "%{http_code}" \
+            -u "$DH_USERNAME:$DH_TOKEN" \
+            "https://auth.docker.io/token?service=registry.docker.io")
 
+          echo "Docker Hub authentication returned HTTP $STATUS"
+
+          if [ "$STATUS" = "200" ]; then
+            echo "Docker Hub accepted the saved credentials."
+          else
+            python -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("detail") or d.get("message") or d.get("error") or "No error details returned.")' "$RESPONSE"
+            exit 1
+          fi
+
+          rm -f "$RESPONSE"
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
         with:
