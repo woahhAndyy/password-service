@@ -27,16 +27,7 @@ jobs:
           test -n "$USERNAME" || { echo "Username variable is missing"; exit 1; }
           test -n "$TOKEN" || { echo "Docker Hub token is missing"; exit 1; }
           echo "Both credentials are available."
-      - name: Test Docker Hub credentials directly
-        env:
-          USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
-          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
-            -u "$USERNAME:$TOKEN" \
-            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:woahhandyy/password-service:pull,push")
-          echo "Docker Hub authentication test returned HTTP $STATUS"
-          test "$STATUS" = "200"
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
         with:
