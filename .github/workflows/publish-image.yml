@@ -19,15 +19,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Verify Docker Hub credentials exist
-        env:
-          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          test -n "$USERNAME" || { echo "Docker Hub username is missing"; exit 1; }
-          test -n "$TOKEN" || { echo "Docker Hub token is missing"; exit 1; }
-          echo "Both Docker Hub credentials are present."
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
         with:
