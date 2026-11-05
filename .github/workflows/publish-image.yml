@@ -24,34 +24,10 @@ jobs:
           USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          test -n "$USERNAME" || { echo "Username variable is missing"; exit 1; }
+          test -n "$USERNAME" || { echo "Docker Hub username is missing"; exit 1; }
           test -n "$TOKEN" || { echo "Docker Hub token is missing"; exit 1; }
-          echo "Both credentials are available."
-      - name: Test Docker Hub credentials
-        env:
-          DH_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          set -o pipefail
-          RESPONSE=$(mktemp)
+          echo "Both Docker Hub credentials are present."
 
-          STATUS=$(python -c 'import json,os; print(json.dumps({"identifier":os.environ["DH_USERNAME"],"secret":os.environ["DH_TOKEN"]}))' | curl -sS -o "$RESPONSE" -w "%{http_code}" \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            --data-binary @- \
-            https://hub.docker.com/v2/auth/token)
-
-          echo "Docker Hub credential test: HTTP $STATUS"
-
-          if [ "$STATUS" = "200" ]; then
-            echo "SUCCESS: Docker Hub accepted the credentials."
-          else
-            python -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("detail") or d.get("message") or d.get("error") or "No additional error details.")' "$RESPONSE"
-            exit 1
-          fi
-
-          rm -f "$RESPONSE"
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
         with:
