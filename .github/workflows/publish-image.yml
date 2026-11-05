@@ -63,4 +63,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: woahhAndyy/password-service:v1
+          tags: woahhandyy/password-service:v1
