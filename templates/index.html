@@ -1,34 +1,241 @@
-"""A separate application that checks a password through HTTP, without the UI.
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Password service · Classroom demo</title>
+  <style>
+    :root { --ink:#183330; --muted:#61716e; --line:#dce5e1; --green:#156555; --soft:#edf6f1; --red:#a1303d; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f4f7f4; color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; line-height:1.5; }
+    main { width:min(100% - 40px,780px); margin:56px auto 36px; }
+    .eyebrow { margin:0 0 12px; color:var(--green); font-size:.75rem; font-weight:750; letter-spacing:.15em; text-transform:uppercase; }
+    h1 { margin:0; font-size:clamp(2rem,6vw,2.8rem); font-weight:700; letter-spacing:-.045em; line-height:1.15; }
+    .intro { max-width:590px; margin:14px 0 18px; color:var(--muted); font-size:1rem; }
+    .notice { display:inline-flex; align-items:center; gap:8px; padding:7px 12px; background:#fff2d8; color:#735116; border:1px solid #efdfbb; border-radius:100px; font-size:.78rem; }
+    .notice::before { content:""; width:6px; height:6px; border-radius:50%; background:#ad7c22; }
+    .card { margin-top:26px; background:white; border:1px solid var(--line); border-radius:18px; box-shadow:0 12px 34px #1d493b08; overflow:hidden; }
+    .tabs { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; padding:9px; border-bottom:1px solid var(--line); background:#fbfcfb; }
+    button,input { font:inherit; }
+    button { cursor:pointer; }
+    .tab { border:0; border-radius:9px; padding:11px 5px; background:transparent; color:var(--muted); font-size:.85rem; font-weight:650; white-space:nowrap; }
+    .tab:hover { background:#edf2ef; color:var(--ink); }
+    .tab[aria-selected="true"] { color:var(--green); background:#e6f1eb; }
+    :focus-visible { outline:3px solid #77b3a5; outline-offset:3px; }
+    .panel { padding:28px 30px 30px; }
+    h2 { margin:0; font-size:1.3rem; letter-spacing:-.025em; }
+    .description { margin:7px 0 25px; color:var(--muted); font-size:.9rem; }
+    .field { margin:0 0 19px; }
+    label { display:block; margin-bottom:7px; font-size:.85rem; font-weight:650; }
+    input { width:100%; min-height:46px; border:1px solid #cbd7d1; border-radius:8px; padding:10px 12px; color:var(--ink); background:white; }
+    input::placeholder { color:#899892; }
+    input:focus { border-color:var(--green); }
+    .hint { margin:6px 0 0; color:var(--muted); font-size:.77rem; }
+    .primary { display:inline-flex; justify-content:center; align-items:center; gap:9px; min-height:45px; padding:11px 19px; border:0; border-radius:9px; background:var(--green); color:white; font-size:.88rem; font-weight:650; }
+    .primary:hover { background:#104e42; }
+    .primary.danger { background:var(--red); }
+    button:disabled { cursor:wait; opacity:.65; }
+    .spinner { width:14px; height:14px; border:2px solid #ffffff60; border-top-color:white; border-radius:50%; animation:spin .7s linear infinite; }
+    .result { margin-top:23px; padding:14px 16px; border:1px solid #cce2d5; border-radius:9px; background:var(--soft); }
+    .result.error { border-color:#ebcbd0; background:#fff4f5; color:#8d2935; }
+    .result.mismatch { border-color:#ead8ae; background:#fff8e9; color:#76551a; }
+    .result strong { display:block; font-size:.88rem; }
+    .result p { margin:4px 0 0; font-size:.86rem; overflow-wrap:anywhere; }
+    .recovery { margin-top:14px; padding:17px; border:1px solid #cbdad3; border-radius:9px; }
+    .recovery h3 { margin:0; font-size:.9rem; }
+    .recovery p { margin:6px 0 12px; color:var(--muted); font-size:.8rem; }
+    .code-row { display:flex; align-items:center; gap:10px; }
+    .code-row code { flex:1; min-width:0; padding:10px; border-radius:6px; background:#f1f5f2; font-size:.95rem; overflow-wrap:anywhere; user-select:all; }
+    .copy { align-self:stretch; padding:8px 13px; border:1px solid #cbd7d1; border-radius:7px; color:var(--green); background:white; font-size:.8rem; font-weight:650; }
+    .copy-feedback { min-height:1.2em; margin-bottom:0!important; }
+    .exchange { padding:17px 30px; border-top:1px solid var(--line); background:#fbfcfb; }
+    summary { width:fit-content; cursor:pointer; color:var(--muted); font-size:.8rem; font-weight:600; }
+    pre { margin:15px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; color:#425d53; font-size:.76rem; line-height:1.65; }
+    footer { margin:18px 4px 0; color:var(--muted); font-size:.77rem; }
+    [hidden] { display:none!important; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (max-width:520px) { main { width:calc(100% - 24px); margin-top:30px; } .panel { padding:23px 20px; } .tabs { gap:1px; padding:7px 4px; } .tab { font-size:.74rem; padding:10px 3px; } .exchange { padding:16px 20px; } .primary { width:100%; } .code-row { align-items:stretch; } }
+    @media (prefers-reduced-motion:reduce) { .spinner { animation:none; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Microservice lab</p>
+    <h1>Password service (Anderson Peterkin)</h1>
+    <p class="intro">Try five operations through one small API. The service stores password hashes in PostgreSQL.</p>
+    <span class="notice">Classroom demo · Use sample passwords</span>
+  </header>
+  <div class="card">
+    <div class="tabs" role="tablist" aria-label="Password operation">
+      <button class="tab" type="button" role="tab" id="tab-create" data-action="create" aria-controls="action-panel" aria-selected="true">Create</button>
+      <button class="tab" type="button" role="tab" id="tab-check" data-action="check" aria-controls="action-panel" aria-selected="false" tabindex="-1">Check</button>
+      <button class="tab" type="button" role="tab" id="tab-change" data-action="change" aria-controls="action-panel" aria-selected="false" tabindex="-1">Change</button>
+      <button class="tab" type="button" role="tab" id="tab-reset" data-action="reset" aria-controls="action-panel" aria-selected="false" tabindex="-1">Recover / reset</button>
+      <button class="tab" type="button" role="tab" id="tab-delete" data-action="delete" aria-controls="action-panel" aria-selected="false" tabindex="-1">Delete</button>
+    </div>
+    <section class="panel" id="action-panel" role="tabpanel" aria-labelledby="tab-create">
+      <h2 id="action-title">Create a password</h2>
+      <p class="description" id="action-description">Register a username and receive a recovery code to save.</p>
+      <form id="password-form">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" placeholder="e.g. student01" required maxlength="40" pattern="[A-Za-z0-9_.\-]{1,40}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="username-hint">
+          <p class="hint" id="username-hint">Up to 40 letters, numbers, dots, underscores or hyphens.</p>
+        </div>
+        <div class="field" id="password-field">
+          <label for="password" id="password-label">New password</label>
+          <input id="password" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="password-hint">
+          <p class="hint" id="password-hint">8–128 characters. Choose a sample password.</p>
+        </div>
+        <div class="field" id="recovery-field" hidden>
+          <label for="recovery-input">Saved recovery code</label>
+          <input id="recovery-input" name="recovery_code" type="password" maxlength="128" autocomplete="off" spellcheck="false" disabled>
+        </div>
+        <div class="field" id="new-password-field" hidden>
+          <label for="new-password">New password</label>
+          <input id="new-password" name="new_password" type="password" minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="new-password-hint" disabled>
+          <p class="hint" id="new-password-hint">8–128 characters. Choose a sample password.</p>
+        </div>
+        <button class="primary" id="submit-button" type="submit"><span class="spinner" id="spinner" hidden aria-hidden="true"></span><span id="submit-label">Create password</span></button>
+      </form>
+      <div class="result" id="result" role="status" aria-live="polite" tabindex="-1" hidden>
+        <strong id="result-title"></strong><p id="result-message"></p>
+      </div>
+      <section class="recovery" id="recovery-panel" aria-labelledby="recovery-title" hidden>
+        <h3 id="recovery-title">Save your recovery code</h3>
+        <p>Copy it now and keep it for recovery. It is shown only after creation or reset; a reset replaces the previous code.</p>
+        <div class="code-row"><code id="recovery-code" tabindex="0"></code><button class="copy" id="copy-button" type="button">Copy code</button></div>
+        <p class="copy-feedback" id="copy-feedback" aria-live="polite"></p>
+      </section>
+    </section>
+    <details class="exchange">
+      <summary>View API exchange</summary>
+      <pre id="api-exchange">Submit an operation to see its HTTP request and response.
+Password values and recovery codes are always redacted here.</pre>
+    </details>
+  </div>
+  <footer>This page calls the Python service over HTTP. No passwords or recovery codes are saved in browser storage.</footer>
+  <noscript><p>Enable JavaScript to use this interactive classroom demonstration.</p></noscript>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const tabs = [...document.querySelectorAll('.tab')];
+  const actions = {
+    create: {title:'Create a password', description:'Register a username and receive a recovery code to save.', label:'Create password', method:'POST', path:'/api/passwords'},
+    check: {title:'Check a password', description:'Ask the service whether this username and password match.', label:'Check password', method:'POST', path:'/api/passwords/check'},
+    change: {title:'Change a password', description:'Use the current password to replace it with a new one.', label:'Change password', method:'POST', path:'/api/passwords/change'},
+    reset: {title:'Recover access', description:'Use your saved recovery code to set a new password and receive a replacement code.', label:'Reset password', method:'POST', path:'/api/passwords/reset'},
+    delete: {title:'Delete a password', description:'Remove this username’s saved credential using its current password.', label:'Delete password', method:'DELETE', path:'/api/passwords'}
+  };
+  let action = 'create';
+  let recoveryCode = '';
 
-First create a credential in the browser. Then run:
-    python client.py
-    python client.py https://YOUR-SERVICE.onrender.com
-"""
+  function clearResult() {
+    $('result').hidden = true;
+    $('recovery-panel').hidden = true;
+    $('recovery-code').textContent = '';
+    $('copy-feedback').textContent = '';
+    recoveryCode = '';
+  }
+  function selectAction(next) {
+    action = next;
+    const config = actions[action];
+    tabs.forEach(tab => {
+      const selected = tab.dataset.action === action;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+    });
+    $('action-panel').setAttribute('aria-labelledby', 'tab-' + action);
+    $('action-title').textContent = config.title;
+    $('action-description').textContent = config.description;
+    $('submit-label').textContent = config.label;
+    $('submit-button').classList.toggle('danger', action === 'delete');
+    [['password', action !== 'reset'], ['recovery', action === 'reset'], ['new-password', ['change','reset'].includes(action)]].forEach(([name,shown]) => {
+      const field = $(name + '-field');
+      const input = field.querySelector('input');
+      field.hidden = !shown;
+      input.disabled = !shown;
+      input.required = shown;
+      input.value = '';
+    });
+    $('password-label').textContent = action === 'create' ? 'New password' : action === 'check' ? 'Password' : 'Current password';
+    $('password').minLength = action === 'create' ? 8 : 1;
+    $('password').autocomplete = action === 'create' ? 'new-password' : 'current-password';
+    $('password-hint').textContent = action === 'create' ? '8–128 characters. Choose a sample password.' : 'Enter the password currently saved for this username.';
+    clearResult();
+  }
+  tabs.forEach((tab,index) => {
+    tab.addEventListener('click', () => selectAction(tab.dataset.action));
+    tab.addEventListener('keydown', event => {
+      const next = {ArrowRight:(index+1)%tabs.length, ArrowLeft:(index+tabs.length-1)%tabs.length, Home:0, End:tabs.length-1}[event.key];
+      if (next !== undefined) { event.preventDefault(); tabs[next].focus(); tabs[next].click(); }
+    });
+  });
+  function showResult(title,message,kind='success') {
+    $('result').className = 'result ' + kind;
+    $('result-title').textContent = title;
+    $('result-message').textContent = message;
+    $('result').hidden = false;
+    $('result').focus();
+  }
+  function showExchange(config,payload,status,data) {
+    const request = Object.fromEntries(Object.keys(payload).map(key => [key, key === 'username' ? '[identifier]' : '[redacted]']));
+    const response = {};
+    for (const key of ['message','error','username','valid','recovery_code']) {
+      if (Object.hasOwn(data,key)) response[key] = key === 'valid' && typeof data[key] === 'boolean' ? data[key] : key === 'recovery_code' ? '[redacted]' : key === 'username' ? '[identifier]' : '[shown above]';
+    }
+    $('api-exchange').textContent = `${config.method} ${config.path}\nHTTP status: ${status}\n\nRequest JSON\n${JSON.stringify(request,null,2)}\n\nResponse JSON (redacted)\n${JSON.stringify(response,null,2)}`;
+  }
+  $('password-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const config = actions[action];
+    const payload = {username:$('username').value};
+    if (action === 'change') Object.assign(payload,{current_password:$('password').value,new_password:$('new-password').value});
+    else if (action === 'reset') Object.assign(payload,{recovery_code:$('recovery-input').value,new_password:$('new-password').value});
+    else payload.password = $('password').value;
+    clearResult();
+    const enabled = [...$('password-form').elements,...tabs].filter(element => !element.disabled);
+    enabled.forEach(element => element.disabled = true);
+    $('password-form').setAttribute('aria-busy','true');
+    $('spinner').hidden = false;
+    $('submit-label').textContent = 'Working…';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(),15000);
+    try {
+      const response = await fetch(config.path,{method:config.method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store'});
+      let data;
+      try { data = await response.json(); } catch { data = {error:'The service returned an unexpected response.'}; }
+      if (!data || typeof data !== 'object' || Array.isArray(data)) data = {error:'The service returned an unexpected response.'};
+      showExchange(config,payload,response.status,data);
+      if (!response.ok || data.error) showResult('Request could not be completed', typeof data.error === 'string' ? data.error : `HTTP ${response.status}. Please try again.`, 'error');
+      else {
+        const mismatch = data.valid === false;
+        showResult(mismatch ? 'Password did not match' : 'Operation completed', typeof data.message === 'string' ? data.message : 'The service processed your request.', mismatch ? 'mismatch' : 'success');
+        if (typeof data.recovery_code === 'string' && ['create','reset'].includes(action)) {
+          recoveryCode = data.recovery_code;
+          $('recovery-code').textContent = recoveryCode;
+          $('recovery-panel').hidden = false;
+        }
+      }
+    } catch (error) {
+      showResult('Could not reach the service', error.name === 'AbortError' ? 'The request timed out. Check the service before trying again; the operation may have completed.' : 'Check that the server is running, then try again.', 'error');
+      $('api-exchange').textContent = `${config.method} ${config.path}\nNo HTTP response received.\nRequest keys: ${Object.keys(payload).join(', ')}\nSecret values omitted.`;
+    } finally {
+      clearTimeout(timer);
+      enabled.forEach(element => element.disabled = false);
+      $('password-form').setAttribute('aria-busy','false');
+      $('spinner').hidden = true;
+      $('submit-label').textContent = config.label;
+      ['password','new-password','recovery-input'].forEach(id => $(id).value = '');
+    }
+  });
+  $('copy-button').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(recoveryCode); $('copy-feedback').textContent = 'Copied. Save it somewhere you can find later.'; }
+    catch { const range = document.createRange(); range.selectNodeContents($('recovery-code')); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); $('copy-feedback').textContent = 'Code selected. Copy it with your keyboard or device’s copy command.'; }
+  });
+</script>
+</body>
+</html>
 
-import json
-import sys
-from getpass import getpass
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
-
-
-def check_password(base_url, username, password):
-    payload = json.dumps({"username": username, "password": password}).encode()
-    request = Request(
-        base_url.rstrip("/") + "/api/passwords/check",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urlopen(request, timeout=90) as response:
-        return json.load(response)
-
-
-if __name__ == "__main__":
-    url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
-    try:
-        result = check_password(url, input("Username: "), getpass("Password: "))
-        print("Password matches." if result["valid"] else "Username or password is incorrect.")
-    except (HTTPError, URLError, TimeoutError):
-        print("Could not check the password. Check the service URL and try again.")
-        raise SystemExit(1)
