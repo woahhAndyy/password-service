@@ -27,22 +27,27 @@ jobs:
           test -n "$USERNAME" || { echo "Username variable is missing"; exit 1; }
           test -n "$TOKEN" || { echo "Docker Hub token is missing"; exit 1; }
           echo "Both credentials are available."
-      - name: Test Docker Hub authentication
+      - name: Test Docker Hub credentials
         env:
           DH_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
+          set -o pipefail
           RESPONSE=$(mktemp)
-          STATUS=$(curl -sS -o "$RESPONSE" -w "%{http_code}" \
-            -u "$DH_USERNAME:$DH_TOKEN" \
-            "https://auth.docker.io/token?service=registry.docker.io")
 
-          echo "Docker Hub authentication returned HTTP $STATUS"
+          STATUS=$(python -c 'import json,os; print(json.dumps({"identifier":os.environ["DH_USERNAME"],"secret":os.environ["DH_TOKEN"]}))' | curl -sS -o "$RESPONSE" -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            --data-binary @- \
+            https://hub.docker.com/v2/auth/token)
+
+          echo "Docker Hub credential test: HTTP $STATUS"
 
           if [ "$STATUS" = "200" ]; then
-            echo "Docker Hub accepted the saved credentials."
+            echo "SUCCESS: Docker Hub accepted the credentials."
           else
-            python -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("detail") or d.get("message") or d.get("error") or "No error details returned.")' "$RESPONSE"
+            python -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("detail") or d.get("message") or d.get("error") or "No additional error details.")' "$RESPONSE"
             exit 1
           fi
 
